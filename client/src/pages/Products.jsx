@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
@@ -286,30 +286,80 @@ const categoryColors = [
   "from-teal-950 via-green-900 to-emerald-700",
 ];
 
+// Pre-compute a lowercase index once, at module load, instead of on every render.
+const searchIndex = productCategories.map((category) => ({
+  ...category,
+  productsLower: category.products.map((p) => p.toLowerCase()),
+}));
+
+const totalProducts = productCategories.reduce(
+  (total, category) => total + category.products.length,
+  0
+);
+
+function useDebouncedValue(value, delayMs) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+
+  return debounced;
+}
+
 function Products() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(null);
+  const searchInputRef = useRef(null);
+
+  const debouncedSearch = useDebouncedValue(search.trim(), 200);
 
   const filteredCategories = useMemo(() => {
-    return productCategories
+    const query = debouncedSearch.toLowerCase();
+
+    return searchIndex
       .filter(
         (category) =>
-          activeCategory === "All" ||
-          category.title === activeCategory
+          activeCategory === "All" || category.title === activeCategory
       )
       .map((category) => ({
         ...category,
-        products: category.products.filter((product) =>
-          product.toLowerCase().includes(search.toLowerCase())
-        ),
+        products: query
+          ? category.products.filter((_, i) =>
+              category.productsLower[i].includes(query)
+            )
+          : category.products,
       }))
       .filter((category) => category.products.length > 0);
-  }, [activeCategory, search]);
+  }, [activeCategory, debouncedSearch]);
 
-  const totalProducts = productCategories.reduce(
-    (total, category) => total + category.products.length,
-    0
+  const resultCount = useMemo(
+    () =>
+      filteredCategories.reduce(
+        (total, category) => total + category.products.length,
+        0
+      ),
+    [filteredCategories]
+  );
+
+  const isFiltering = activeCategory !== "All" || debouncedSearch.length > 0;
+
+  const resetFilters = useCallback(() => {
+    setSearch("");
+    setActiveCategory("All");
+    setExpanded(null);
+  }, []);
+
+  const handleSearchKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Escape" && search) {
+        e.preventDefault();
+        setSearch("");
+      }
+    },
+    [search]
   );
 
   return (
@@ -373,14 +423,14 @@ function Products() {
 
                 <a
                   href="#collection"
-                  className="rounded-2xl bg-white px-8 py-4 font-bold text-green-900 shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl"
+                  className="rounded-2xl bg-white px-8 py-4 font-bold text-green-900 shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 >
                   Explore Collection ↓
                 </a>
 
                 <Link
                   to="/contact"
-                  className="rounded-2xl border border-white/30 bg-white/10 px-8 py-4 font-bold text-white backdrop-blur transition duration-300 hover:bg-white hover:text-green-900"
+                  className="rounded-2xl border border-white/30 bg-white/10 px-8 py-4 font-bold text-white backdrop-blur transition duration-300 hover:bg-white hover:text-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 >
                   Request Quote →
                 </Link>
@@ -486,12 +536,29 @@ function Products() {
                 </span>
 
                 <input
+                  ref={searchInputRef}
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder="Search products..."
-                  className="w-full rounded-2xl border border-green-100 bg-white py-5 pl-14 pr-6 text-lg shadow-lg outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100"
+                  aria-label="Search products"
+                  className="w-full rounded-2xl border border-green-100 bg-white py-5 pl-14 pr-14 text-lg shadow-lg outline-none transition focus:border-green-500 focus:ring-4 focus:ring-green-100"
                 />
+
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      searchInputRef.current?.focus();
+                    }}
+                    aria-label="Clear search"
+                    className="absolute right-5 top-1/2 -translate-y-1/2 rounded-full p-1 text-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                )}
 
               </div>
 
@@ -499,11 +566,17 @@ function Products() {
 
             {/* Category filters */}
 
-            <div className="mt-8 flex gap-3 overflow-x-auto pb-4">
+            <div
+              className="sticky top-16 z-20 -mx-6 mt-8 flex gap-3 overflow-x-auto bg-[#F8F6F0]/95 px-6 py-4 backdrop-blur-sm"
+              role="tablist"
+              aria-label="Filter by category"
+            >
 
               <button
+                role="tab"
+                aria-selected={activeCategory === "All"}
                 onClick={() => setActiveCategory("All")}
-                className={`whitespace-nowrap rounded-full px-6 py-3 text-sm font-bold transition ${
+                className={`whitespace-nowrap rounded-full px-6 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 ${
                   activeCategory === "All"
                     ? "bg-green-900 text-white shadow-lg"
                     : "bg-white text-gray-600 shadow hover:bg-green-50"
@@ -515,8 +588,10 @@ function Products() {
               {productCategories.map((category) => (
                 <button
                   key={category.title}
+                  role="tab"
+                  aria-selected={activeCategory === category.title}
                   onClick={() => setActiveCategory(category.title)}
-                  className={`whitespace-nowrap rounded-full px-6 py-3 text-sm font-bold transition ${
+                  className={`whitespace-nowrap rounded-full px-6 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 ${
                     activeCategory === category.title
                       ? "bg-green-900 text-white shadow-lg"
                       : "bg-white text-gray-600 shadow hover:bg-green-50"
@@ -527,6 +602,26 @@ function Products() {
               ))}
 
             </div>
+
+            {/* Result count / active filters */}
+
+            {isFiltering && (
+              <div
+                className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm"
+                aria-live="polite"
+              >
+                <span className="font-semibold text-gray-600">
+                  {resultCount} product{resultCount === 1 ? "" : "s"} found
+                </span>
+
+                <button
+                  onClick={resetFilters}
+                  className="rounded-full border border-green-200 px-4 py-1.5 font-bold text-green-800 transition hover:bg-green-800 hover:text-white"
+                >
+                  Clear filters ✕
+                </button>
+              </div>
+            )}
 
             {/* Product categories */}
 
@@ -647,7 +742,8 @@ function Products() {
                                 isExpanded ? null : category.title
                               )
                             }
-                            className="mt-6 w-full rounded-xl border border-green-200 py-3 font-bold text-green-800 transition hover:bg-green-800 hover:text-white"
+                            aria-expanded={isExpanded}
+                            className="mt-6 w-full rounded-xl border border-green-200 py-3 font-bold text-green-800 transition hover:bg-green-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
                           >
                             {isExpanded
                               ? "Show Less ↑"
@@ -681,10 +777,7 @@ function Products() {
                 </p>
 
                 <button
-                  onClick={() => {
-                    setSearch("");
-                    setActiveCategory("All");
-                  }}
+                  onClick={resetFilters}
                   className="mt-6 rounded-xl bg-green-800 px-6 py-3 font-bold text-white"
                 >
                   Reset Search
@@ -794,7 +887,7 @@ function Products() {
 
               <Link
                 to="/contact"
-                className="mt-10 inline-flex items-center rounded-2xl bg-white px-10 py-5 font-black text-green-900 shadow-2xl transition duration-300 hover:-translate-y-1 hover:scale-105"
+                className="mt-10 inline-flex items-center rounded-2xl bg-white px-10 py-5 font-black text-green-900 shadow-2xl transition duration-300 hover:-translate-y-1 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 Request a Quote
                 <span className="ml-3 text-xl">→</span>
