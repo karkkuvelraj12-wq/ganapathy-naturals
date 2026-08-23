@@ -1,8 +1,39 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import logo from "../../assets/logos/logo.png";
 import leavesVideo from "../../assets/videos/leaves.mp4";
 
 function Navbar() {
+  const [showNavbar, setShowNavbar] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // Always show navbar at the very top
+      if (currentScrollY <= 50) {
+        setShowNavbar(true);
+      }
+      // Scrolling down → hide
+      else if (currentScrollY > lastScrollY) {
+        setShowNavbar(false);
+      }
+      // Scrolling up → show
+      else if (currentScrollY < lastScrollY) {
+        setShowNavbar(true);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [lastScrollY]);
+
   const navLinkClass = ({ isActive }) =>
     `font-medium transition duration-300 ${
       isActive
@@ -11,7 +42,11 @@ function Navbar() {
     }`;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 overflow-hidden shadow-md">
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 overflow-hidden shadow-md transition-transform duration-300 ${
+        showNavbar ? "translate-y-0" : "-translate-y-full"
+      }`}
+    >
 
       {/* Background Video */}
       <video
@@ -32,6 +67,7 @@ function Navbar() {
 
         {/* Logo */}
         <NavLink to="/" className="flex items-center gap-3">
+
           <img
             src={logo}
             alt="Ganapathy Naturals"
@@ -47,6 +83,7 @@ function Navbar() {
               Nature • Purity • Trust
             </p>
           </div>
+
         </NavLink>
 
         {/* Navigation */}
@@ -77,6 +114,7 @@ function Navbar() {
           </button>
 
         </div>
+
       </div>
 
     </nav>
