@@ -1,53 +1,56 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import logo from "../../assets/logos/logo.png";
 import leavesVideo from "../../assets/videos/leaves.mp4";
 
 function Navbar() {
   const [showNavbar, setShowNavbar] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
 
-      // Always show navbar at the very top
+      // Always show navbar at the top
       if (currentScrollY <= 50) {
         setShowNavbar(true);
       }
-      // Scrolling down → hide
-      else if (currentScrollY > lastScrollY) {
+      // Scrolling down → hide navbar
+      else if (currentScrollY > lastScrollY.current) {
         setShowNavbar(false);
       }
-      // Scrolling up → show
-      else if (currentScrollY < lastScrollY) {
+      // Scrolling up → show navbar
+      else if (currentScrollY < lastScrollY.current) {
         setShowNavbar(true);
       }
 
-      setLastScrollY(currentScrollY);
+      lastScrollY.current = currentScrollY;
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
-  }, [lastScrollY]);
+  }, []);
 
   const navLinkClass = ({ isActive }) =>
     `font-medium transition duration-300 ${
       isActive
-        ? "text-green-700"
-        : "text-gray-800 hover:text-green-700"
+        ? "text-green-400"
+        : "text-white hover:text-green-400"
     }`;
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 overflow-hidden shadow-md transition-transform duration-300 ${
-        showNavbar ? "translate-y-0" : "-translate-y-full"
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 overflow-hidden shadow-md
+        transition-transform duration-500 ease-in-out
+        ${
+          showNavbar
+            ? "translate-y-0"
+            : "-translate-y-full"
+        }`}
     >
-
       {/* Background Video */}
       <video
         autoPlay
@@ -59,7 +62,7 @@ function Navbar() {
         <source src={leavesVideo} type="video/mp4" />
       </video>
 
-      {/* Transparent Overlay */}
+      {/* Dark Overlay */}
       <div className="absolute inset-0 bg-black/60"></div>
 
       {/* Navbar Content */}
@@ -75,11 +78,11 @@ function Navbar() {
           />
 
           <div>
-            <h1 className="text-2xl font-bold text-green-700">
+            <h1 className="text-2xl font-bold text-green-400">
               Ganapathy Naturals
             </h1>
 
-            <p className="text-xs uppercase tracking-[0.25em] text-gray-700">
+            <p className="text-xs uppercase tracking-[0.25em] text-gray-200">
               Nature • Purity • Trust
             </p>
           </div>
@@ -109,14 +112,27 @@ function Navbar() {
             Contact
           </NavLink>
 
-          <button className="rounded-xl bg-green-700 px-6 py-3 font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-green-800 hover:shadow-lg">
+          <button
+            className="
+              rounded-xl
+              bg-green-700
+              px-6
+              py-3
+              font-semibold
+              text-white
+              transition-all
+              duration-300
+              hover:-translate-y-0.5
+              hover:bg-green-800
+              hover:shadow-lg
+            "
+          >
             Request Quote
           </button>
 
         </div>
 
       </div>
-
     </nav>
   );
 }
