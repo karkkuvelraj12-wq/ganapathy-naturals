@@ -154,7 +154,7 @@ function Contact() {
 
             <p className="mt-3 text-xl text-gray-700 break-all">
 
-              ganapathisamy@ganapathynaturals.com
+              sales@ganapathynaturals.com
 
             </p>
 
