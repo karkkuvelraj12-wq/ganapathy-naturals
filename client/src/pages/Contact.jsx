@@ -290,7 +290,7 @@ function Contact() {
 
       <iframe
         title="Ganapathy Naturals"
-        src="https://www.google.com/maps?q=Queens+Valley+Layout+Hosur&output=embed"
+        src="https://www.google.com/maps?q=12.776500,77.831944&output=embed"
         width="100%"
         height="500"
         loading="lazy"
